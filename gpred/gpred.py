@@ -3,7 +3,7 @@ import sys
 import os
 import csv
 import re
-import textwrap
+from textwrap import fill
 from re import Pattern
 from pathlib import Path
 from typing import List, Union, Optional
@@ -272,7 +272,7 @@ def main() -> None: # pragma: no cover
     
     # 7. Écriture des fichiers de sortie
     write_genes_pos(args.predicted_genes_file, all_genes_pos)
-    write_genes(args.fasta_file, sequence, probable_genes, sequence_rc, probable_genes_comp)
+    write_genes(args.fasta_file, sequence, probable_genes, sequence_rc, probable_genes_comp_raw)
     
     # Don't forget to uncomment !!!
     # Call these function in the order that you want
