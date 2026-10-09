@@ -245,6 +245,34 @@ def main() -> None: # pragma: no cover
     # Arguments
     args = get_arguments()
     # Let us do magic in 5' to 3'
+
+    sequence = read_fasta(args.genome_file)
+    seq_len = len(sequence)
+
+    probable_genes = predict_genes(
+        sequence, start_regex, stop_regex, shine_regex,
+        args.min_gene_len, args.max_shine_dalgarno_distance, args.min_gap
+    )
+
+    sequence_rc = reverse_complement(sequence)
+
+    probable_genes_comp_raw = predict_genes(
+        sequence_rc, start_regex, stop_regex, shine_regex,
+        args.min_gene_len, args.max_shine_dalgarno_distance, args.min_gap
+    )
+
+    probable_genes_comp = []
+    for gene in probable_genes_comp_raw:
+        start_corr = seq_len - gene[1] + 1
+        stop_corr = seq_len - gene[0] + 1
+        probable_genes_comp.append([start_corr, stop_corr])
+        
+    # 6. Fusion et tri de toutes les positions pour le fichier de positions
+    all_genes_pos = sorted(probable_genes + probable_genes_comp, key=lambda x: x[0])
+    
+    # 7. Écriture des fichiers de sortie
+    write_genes_pos(args.predicted_genes_file, all_genes_pos)
+    write_genes(args.fasta_file, sequence, probable_genes, sequence_rc, probable_genes_comp)
     
     # Don't forget to uncomment !!!
     # Call these function in the order that you want
