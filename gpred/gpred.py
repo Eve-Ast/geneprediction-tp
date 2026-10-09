@@ -80,7 +80,10 @@ def find_start(start_regex: Pattern, sequence: str, start: int, stop: int) -> Un
     :param stop: (int) Stop position of the research
     :return: (int) If exist, position of the start codon. Otherwise None. 
     """
-    pass
+    match = start_regex.search(sequence, start, stop)
+    if match:
+        return match.start(0)
+    return None
 
 
 def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None]:
@@ -91,7 +94,11 @@ def find_stop(stop_regex: Pattern, sequence: str, start: int) -> Union[int, None
     :param start: (int) Start position of the research
     :return: (int) If exist, position of the stop codon. Otherwise None. 
     """
-    pass
+    for match in stop_regex.finditer(sequence, start):
+        # Vérifie si le codon STOP est dans le même cadre de lecture (multiple de 3)
+        if (match.start(0) - start) % 3 == 0:
+            return match.start(0)
+    return None
 
 
 def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shine_dalgarno_distance: int) -> bool:
@@ -103,7 +110,18 @@ def has_shine_dalgarno(shine_regex: Pattern, sequence: str, start: int, max_shin
     :param max_shine_dalgarno_distance: (int) Maximum distance of the shine dalgarno to the start position
     :return: (boolean) true -> has a shine dalgarno upstream to the gene, false -> no
     """
-    pass
+    # Calcul de la position de début de recherche en amont du START
+    search_start = start - max_shine_dalgarno_distance
+    search_stop = start - 6
+
+    # Si la position de début est négative, on retourne False
+    if search_start < 0:
+        return False
+
+    match = shine_regex.search(sequence, search_start, search_stop)
+    if match:
+        return True
+    return False
 
 
 def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shine_regex: Pattern, 
@@ -119,7 +137,43 @@ def predict_genes(sequence: str, start_regex: Pattern, stop_regex: Pattern, shin
     :param min_gap: (int) Minimum distance between two genes.
     :return: (list) List of [start, stop] position of each predicted genes.
     """
-    pass
+    gene_list = []
+    current_pos = 0
+    seq_len = len(sequence)
+
+    while seq_len - current_pos >= min_gap:
+        # Recherche du codon START depuis la position courante
+        start_pos = find_start(start_regex, sequence, current_pos, seq_len)
+        
+        if start_pos is not None:
+            # Recherche du codon STOP à partir du START
+            stop_pos = find_stop(stop_regex, sequence, start_pos)
+            
+            if stop_pos is not None:
+                # Longueur du gène 
+                gene_len = (stop_pos + 3) - start_pos
+                
+                if gene_len >= min_gene_len:
+                    # Vérification du motif Shine-Dalgarno en amont
+                    if has_shine_dalgarno(shine_regex, sequence, start_pos, max_shine_dalgarno_distance):
+                        # Enregistrement du gène en coordonnées base 1
+                        # Première lettre du START (start_pos + 1)
+                        # Dernière lettre du STOP (stop_pos + 3)
+                        gene_list.append([start_pos + 1, stop_pos + 3])
+                        
+                        # Mise à jour de la position courante après le gène + min_gap
+                        current_pos = stop_pos + 3 + min_gap
+                    else:
+                        current_pos += 1
+                else:
+                    current_pos += 1
+            else:
+                current_pos += 1
+        else:
+            # Plus aucun codon START trouvé dans la séquence
+            break
+
+    return gene_list
 
 
 def write_genes_pos(predicted_genes_file: Path, probable_genes: List[List[int]]) -> None:
